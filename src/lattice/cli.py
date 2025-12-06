@@ -52,45 +52,77 @@ def main():
         required=True,
         help="One or more protein sequences (e.g., HHHPPHP)",
     )
+    parser.add_argument(
+        "--ensemble", "-e",
+        action="store_true",
+        help="Print the ensemble configurations for each protein",
+    )
+    parser.add_argument(
+        "--file", "-f",
+        type=str,
+        help="Write output to a file instead of console (loading indicator still shows on console)",
+    )
     
     args = parser.parse_args()
     
-    for sequence in args.proteins:
-        print(f"\n{'='*60}")
-        print(f"Sequence: {sequence}")
-        print(f"{'='*60}")
-        
-        loader = None
-        try:
-            # Start loading indicator
-            loader = LoadingIndicator()
-            loader.start()
+    # Open file if specified, otherwise use stdout
+    output_file = None
+    if args.file:
+        output_file = open(args.file, 'w')
+    
+    # Helper function to print to file or stdout
+    def output_print(*args, **kwargs):
+        if output_file:
+            print(*args, file=output_file, **kwargs)
+            output_file.flush()
+        else:
+            print(*args, **kwargs)
+    
+    try:
+        for sequence in args.proteins:
+            output_print(f"\n{'='*60}")
+            output_print(f"Sequence: {sequence}")
+            output_print(f"{'='*60}")
             
-            ensemble = Ensemble(sequence)
-            
-            # Stop loading indicator
-            loader.stop()
             loader = None
-            
-            # Output degeneracies
-            print("\nDegeneracies:")
-            degeneracies = ensemble.degeneracies
-            for m, count in sorted(degeneracies.items()):
-                print(f"  m={m}: {count}")
-            
-            # Output partition function
-            z = ensemble.z_partition_function()
-            print(f"\nZ (Partition Function): {z}")
-            
-            # Output average compactness
-            p_avg = ensemble.p_average_compactness()
-            print(f"P (Average Compactness): {p_avg}")
-            
-        except Exception as e:
-            if loader:
+            try:
+                # Start loading indicator
+                loader = LoadingIndicator()
+                loader.start()
+                
+                ensemble = Ensemble(sequence)
+                
+                # Stop loading indicator
                 loader.stop()
-            print(f"Error processing sequence '{sequence}': {e}")
-            continue
+                loader = None
+                
+                # Output degeneracies
+                output_print("\nDegeneracies:")
+                degeneracies = ensemble.degeneracies
+                for m, count in sorted(degeneracies.items()):
+                    output_print(f"  m={m}: {count}")
+                
+                # Output partition function
+                z = ensemble.z_partition_function()
+                output_print(f"\nZ (Partition Function): {z}")
+                
+                # Output average compactness
+                p_avg = ensemble.p_average_compactness()
+                output_print(f"P (Average Compactness): {p_avg}")
+                
+                # Output ensemble if flag is set
+                if args.ensemble:
+                    output_print("\nEnsemble Configurations:")
+                    output_print(str(ensemble))
+                
+            except Exception as e:
+                if loader:
+                    loader.stop()
+                output_print(f"Error processing sequence '{sequence}': {e}")
+                continue
+    finally:
+        if output_file:
+            output_file.close()
 
 
 if __name__ == "__main__":
