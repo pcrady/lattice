@@ -1,0 +1,29 @@
+[project]
+name = "lattice"
+version = "0.1.0"
+description = "Lattice-based protein and ensemble simulation toolkit"
+authors = [
+    { name = "Peter Crady", email = "petercrady@example.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+# Add runtime dependencies here
+dependencies = []
+
+# If you want users to run `lattice` from the command line:
+[project.scripts]
+lattice = "lattice.ensemble:main"
+
+# Optional: entry point when running `python -m lattice`
+[project.entry-points."console_scripts"]
+lattice-cli = "lattice.ensemble:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-ra -q"

@@ -1,7 +1,7 @@
 from typing import Callable
 import math
 import numpy as np
-from protein_config import *
+from .protein_config import ProteinConfig
 
 
 

@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from protein_config import *
-from ensemble import *
+from lattice.protein_config import ProteinConfig
+from lattice.ensemble import Ensemble
 
 
 class TestProteinConfig(unittest.TestCase):
