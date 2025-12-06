@@ -12,23 +12,23 @@ EPSILON_ENERGY = 0.0
 
 class Ensemble:
     """Represents an ensemble of protein configurations on a 2D lattice.
-    
+
     The Ensemble class generates all valid self-avoiding walk configurations
     for a given protein sequence and provides methods to compute statistical
     mechanical properties such as degeneracies, partition functions, and
     average compactness.
     """
-    
+
     def __init__(
         self,
         protein_string: str,
     ):
         """Initialize an Ensemble for a given protein sequence.
-        
+
         Args:
             protein_string: A string of 'H' (hydrophobic) and 'P' (polar) residues.
                 Must contain at least 2 residues and only 'H' and 'P' characters.
-        
+
         Raises:
             AssertionError: If the protein string contains invalid characters
                 or has fewer than 2 residues.
@@ -51,11 +51,11 @@ class Ensemble:
 
     def _generate_paths(self) -> list[list[tuple[int, int]]]:
         """Generate all valid self-avoiding walk paths on a 2D lattice.
-        
+
         Generates all possible paths starting from (0,0) to (1,0) and extending
         to length n_residues, ensuring no self-intersections (self-avoiding walks).
         Each path is represented as a list of (x, y) coordinate tuples.
-        
+
         Returns:
             A list of paths, where each path is a list of (x, y) coordinate tuples
             representing a valid self-avoiding walk configuration.
@@ -84,11 +84,11 @@ class Ensemble:
 
     def _generate_ensemble(self) -> list[ProteinConfig]:
         """Generate the complete ensemble of protein configurations.
-        
+
         Converts all valid paths into ProteinConfig objects, assigns residue
         types based on the protein string, and removes duplicate configurations.
         The resulting ensemble is sorted by HH contact count.
-        
+
         Returns:
             A sorted list of unique ProteinConfig objects, sorted by increasing
             HH contact count (hydrophobic-hydrophobic contacts).
@@ -113,7 +113,7 @@ class Ensemble:
     @property
     def size(self):
         """Get the number of unique configurations in the ensemble.
-        
+
         Returns:
             The total number of unique protein configurations in the ensemble.
         """
@@ -122,10 +122,10 @@ class Ensemble:
     @property
     def s_max_HH(self) -> int:
         """Get the maximum number of HH contacts in the ensemble.
-        
+
         The maximum HH contacts corresponds to the configuration with the
         lowest energy (most favorable hydrophobic interactions).
-        
+
         Returns:
             The maximum number of hydrophobic-hydrophobic contacts found
             in any configuration in the ensemble.
@@ -136,11 +136,11 @@ class Ensemble:
     @property
     def degeneracies(self) -> dict[int, int]:
         """Compute the degeneracy for each possible number of HH contacts.
-        
+
         The degeneracy g(m) represents the number of configurations with
         exactly m hydrophobic-hydrophobic contacts, summed over all possible
         non-HH contact counts.
-        
+
         Returns:
             A dictionary mapping m (number of HH contacts) to g(m) (degeneracy).
             Keys range from 0 to s_max_HH.
@@ -166,11 +166,13 @@ class Ensemble:
             for i in range(len(count), length):
                 count.append(i)
                 energy.append(0)
- 
-        df: pd.DataFrame = pd.DataFrame({
-            'count': count,
-            'energy': energy,
-        })
+
+        df: pd.DataFrame = pd.DataFrame(
+            {
+                "count": count,
+                "energy": energy,
+            }
+        )
 
         return df
 
@@ -180,14 +182,14 @@ class Ensemble:
         u_non_HHcontacts: int,
     ) -> int:
         """Compute the degeneracy for a specific contact configuration.
-        
+
         Counts the number of configurations with exactly m_HH_contacts HH contacts
         and exactly u_non_HHcontacts non-HH contacts (HP + PP contacts).
-        
+
         Args:
             m_HH_contacts: The number of hydrophobic-hydrophobic contacts.
             u_non_HHcontacts: The number of non-HH contacts (HP + PP contacts).
-        
+
         Returns:
             The number of configurations with the specified contact counts.
         """
@@ -208,13 +210,13 @@ class Ensemble:
         """Equation 4
 
         Compute the degeneracy for a given number of HH contacts.
-        
+
         Sums over all possible non-HH contact counts to get the total degeneracy
         for configurations with exactly m_HH_contacts HH contacts.
-        
+
         Args:
             m_HH_contacts: The number of hydrophobic-hydrophobic contacts.
-        
+
         Returns:
             The total number of configurations with exactly m_HH_contacts HH contacts,
             summed over all possible non-HH contact counts.
@@ -232,19 +234,19 @@ class Ensemble:
         """Equation 3
 
         Compute the partition function Z for the ensemble.
-        
+
         The partition function is defined as:
         Z = Σ_m g(m) * exp((s_max - m) * ε)
-        
+
         where g(m) is the degeneracy for m HH contacts, s_max is the maximum
         HH contacts, and ε is the energy parameter.
-        
+
         Args:
             g_degeneracy: Optional custom degeneracy function. If None, uses
                 self.g_degeneracy.
             epsilon: Energy parameter ε. Defaults to EPSILON_ENERGY (0.0).
                 Positive values favor configurations with more HH contacts.
-        
+
         Returns:
             The partition function Z, a normalization constant for the ensemble.
         """
@@ -259,25 +261,25 @@ class Ensemble:
     def p_average_compactness(
         self,
         epsilon: float = EPSILON_ENERGY,
-    ):
+    ) -> float:
         """Equation 5
 
         Compute the average compactness of the ensemble.
-        
+
         The average compactness is the weighted average of the compactness
         (fraction of maximum possible contacts) over all configurations,
         weighted by their Boltzmann factors.
-        
+
         Compactness for a configuration is defined as:
         (m + u) / t_max
-        
+
         where m is HH contacts, u is non-HH contacts, and t_max is the
         maximum possible topological neighbors.
-        
+
         Args:
             epsilon: Energy parameter ε. Defaults to EPSILON_ENERGY (0.0).
                 Positive values favor configurations with more HH contacts.
-        
+
         Returns:
             The average compactness, a value between 0 and 1, representing
             the expected fraction of maximum possible contacts.
@@ -286,40 +288,52 @@ class Ensemble:
         for m in range(self.s_max_HH + 1):
             for u in range(self.t_max_topological_neighbors - m + 1):
                 compactness = (u + m) / self.t_max_topological_neighbors
+                assert compactness <= 1
+                assert compactness >= 0
+
                 g = self.G_contact_degeneracy(m, u)
+                assert g >= 0
+
                 exponential = math.exp((self.s_max_HH - m) * epsilon)
+
                 value += compactness * g * exponential
+        return value * (1 / self.z_partition_function(epsilon=epsilon))
 
+    @property
+    def p_average_compactness_native_state(
+        self,
+    ) -> float:
+        """Equation 8
 
- 
-                #value = value + (
-                #    (u + m) / self.t_max_topological_neighbors
-                #) * self.G_contact_degeneracy(m, u) * math.exp(
-                #    (self.s_max_HH - m) * epsilon
-                #)
-        return value * (1 / self.z_partition_function())
+        Compute the average compactness of the native state (global minimum)
+        of the ensemble.
 
-    def p_native_state_avg_compactness(self):
-        """Compute the average compactness of the native state.
-        
-        The native state is defined as the configuration(s) with the maximum
-        number of HH contacts (lowest energy).
-        
-        Note:
-            This method is currently not implemented (TODO).
-        
+        Args:
+            epsilon: Energy parameter ε. Defaults to EPSILON_ENERGY (0.0).
+                Positive values favor configurations with more HH contacts.
+
         Returns:
-            The average compactness of the native state configuration(s).
+            The average compactness, a value between 0 and 1, representing
+            the expected fraction of maximum possible contacts.
         """
         value = 0
-        # TODO ----------------------
+        for u in range(self.t_max_topological_neighbors - self.s_max_HH + 1):
+            compactness = (u + self.s_max_HH) / self.t_max_topological_neighbors
+            assert compactness <= 1
+            assert compactness >= 0
+
+            g = self.G_contact_degeneracy(self.s_max_HH, u)
+            assert g >= 0
+
+            value += compactness * g
+        return value * (1 / self.z_partition_function(epsilon=-999999999999))
 
     def __str__(self) -> str:
         """Generate a string representation of the ensemble.
-        
+
         Creates a formatted string showing all protein configurations in
         the ensemble, with separators between each configuration.
-        
+
         Returns:
             A multi-line string representation of all configurations in
             the ensemble, separated by horizontal lines.
@@ -330,4 +344,3 @@ class Ensemble:
             return_string = return_string + "\n"
             return_string = return_string + "---------------------------\n"
         return return_string
-
