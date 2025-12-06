@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import sys
+import threading
+import time
 from pathlib import Path
 
 # Add src directory to path if running without installation
@@ -11,6 +13,33 @@ if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
 from lattice.ensemble import Ensemble
+
+
+class LoadingIndicator:
+    def __init__(self):
+        self.spinner_chars = ['/', '-', '\\', '|']
+        self.stop_flag = threading.Event()
+        self.thread = None
+    
+    def _spin(self):
+        i = 0
+        while not self.stop_flag.is_set():
+            sys.stdout.write(f'\rProcessing... {self.spinner_chars[i % len(self.spinner_chars)]}')
+            sys.stdout.flush()
+            time.sleep(0.2)
+            i += 1
+        sys.stdout.write('\r' + ' ' * 20 + '\r')  # Clear the line
+        sys.stdout.flush()
+    
+    def start(self):
+        self.stop_flag.clear()
+        self.thread = threading.Thread(target=self._spin, daemon=True)
+        self.thread.start()
+    
+    def stop(self):
+        self.stop_flag.set()
+        if self.thread:
+            self.thread.join()
 
 
 def main():
@@ -31,8 +60,17 @@ def main():
         print(f"Sequence: {sequence}")
         print(f"{'='*60}")
         
+        loader = None
         try:
+            # Start loading indicator
+            loader = LoadingIndicator()
+            loader.start()
+            
             ensemble = Ensemble(sequence)
+            
+            # Stop loading indicator
+            loader.stop()
+            loader = None
             
             # Output degeneracies
             print("\nDegeneracies:")
@@ -49,6 +87,8 @@ def main():
             print(f"P (Average Compactness): {p_avg}")
             
         except Exception as e:
+            if loader:
+                loader.stop()
             print(f"Error processing sequence '{sequence}': {e}")
             continue
 
