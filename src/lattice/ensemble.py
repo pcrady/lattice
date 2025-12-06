@@ -2,6 +2,7 @@ from typing import Callable
 import math
 import numpy as np
 from .protein_config import ProteinConfig
+import pandas as pd
 
 
 # Default energy parameter for partition function calculations
@@ -149,6 +150,30 @@ class Ensemble:
             degens[m] = self.g_degeneracy(m)
         return degens
 
+    @property
+    def degeneracies_df(self) -> pd.DataFrame:
+        """Returns the degeneracies of the ensemble as a pandas dataframe.
+
+        Returns:
+            A pandas dataframe containing the degeneracies of the ensemble.
+        """
+        length = 6
+        degens = self.degeneracies
+        count = list(degens.keys())
+        energy = list(degens.values())
+
+        if len(count) < length:
+            for i in range(len(count), length):
+                count.append(i)
+                energy.append(0)
+ 
+        df: pd.DataFrame = pd.DataFrame({
+            'count': count,
+            'energy': energy,
+        })
+
+        return df
+
     def G_contact_degeneracy(
         self,
         m_HH_contacts: int,
@@ -180,7 +205,9 @@ class Ensemble:
         self,
         m_HH_contacts: int,
     ) -> int:
-        """Compute the degeneracy for a given number of HH contacts.
+        """Equation 4
+
+        Compute the degeneracy for a given number of HH contacts.
         
         Sums over all possible non-HH contact counts to get the total degeneracy
         for configurations with exactly m_HH_contacts HH contacts.
@@ -202,7 +229,9 @@ class Ensemble:
         g_degeneracy: Callable[[int], int] | None = None,
         epsilon: float = EPSILON_ENERGY,
     ) -> float:
-        """Compute the partition function Z for the ensemble.
+        """Equation 3
+
+        Compute the partition function Z for the ensemble.
         
         The partition function is defined as:
         Z = Σ_m g(m) * exp((s_max - m) * ε)
@@ -231,7 +260,9 @@ class Ensemble:
         self,
         epsilon: float = EPSILON_ENERGY,
     ):
-        """Compute the average compactness of the ensemble.
+        """Equation 5
+
+        Compute the average compactness of the ensemble.
         
         The average compactness is the weighted average of the compactness
         (fraction of maximum possible contacts) over all configurations,
@@ -254,11 +285,18 @@ class Ensemble:
         value = 0
         for m in range(self.s_max_HH + 1):
             for u in range(self.t_max_topological_neighbors - m + 1):
-                value = value + (
-                    (u + m) / self.t_max_topological_neighbors
-                ) * self.G_contact_degeneracy(m, u) * math.exp(
-                    (self.s_max_HH - m) * epsilon
-                )
+                compactness = (u + m) / self.t_max_topological_neighbors
+                g = self.G_contact_degeneracy(m, u)
+                exponential = math.exp((self.s_max_HH - m) * epsilon)
+                value += compactness * g * exponential
+
+
+ 
+                #value = value + (
+                #    (u + m) / self.t_max_topological_neighbors
+                #) * self.G_contact_degeneracy(m, u) * math.exp(
+                #    (self.s_max_HH - m) * epsilon
+                #)
         return value * (1 / self.z_partition_function())
 
     def p_native_state_avg_compactness(self):
