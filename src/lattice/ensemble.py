@@ -149,20 +149,3 @@ class Ensemble:
             return_string = return_string + "---------------------------\n"
         return return_string
 
-
-proteins = [
-    "HHHHHHHHHH",
-    "HPHPPHPPHH",
-    "HPPHPPHPHH",
-    "PPPPPPHPPH",
-    "PPPPPHHHHH",
-    "PPPPPPPPPP",
-]
-for protein in proteins:
-    ensemble = Ensemble(protein)
-    print(ensemble)
-    print(protein)
-    print(ensemble.degeneracies)
-    print(ensemble.z_partition_function())
-    print(ensemble.p_average_compactness())
-    print("")

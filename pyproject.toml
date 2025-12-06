@@ -14,11 +14,11 @@ dependencies = []
 
 # If you want users to run `lattice` from the command line:
 [project.scripts]
-lattice = "lattice.ensemble:main"
+lattice = "lattice.cli:main"
 
 # Optional: entry point when running `python -m lattice`
 [project.entry-points."console_scripts"]
-lattice-cli = "lattice.ensemble:main"
+lattice-cli = "lattice.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
