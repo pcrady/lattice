@@ -3,6 +3,7 @@ import argparse
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 # Add src directory to path if running without installation
@@ -119,6 +120,13 @@ def main():
                 if loader:
                     loader.stop()
                 output_print(f"Error processing sequence '{sequence}': {e}")
+                output_print("\nTraceback:")
+                # Print traceback to the same output destination
+                if output_file:
+                    traceback.print_exc(file=output_file)
+                    output_file.flush()
+                else:
+                    traceback.print_exc()
                 continue
     finally:
         if output_file:
