@@ -136,7 +136,9 @@ class ProteinConfig:
 
     @staticmethod
     def compute_t_max_topological_neighbors(n_residues: int) -> int:
-        """Compute the maximum number of topological neighbors for a protein.
+        """Equation 1
+
+        Compute the maximum number of topological neighbors for a protein.
         
         The maximum topological neighbors is calculated as:
         t_max = n_residues + 1 - (p_min / 2)
@@ -154,7 +156,9 @@ class ProteinConfig:
 
     @staticmethod
     def compute_p_min_perimeter(n_residues) -> int:
-        """Compute the minimum perimeter for a compact shape with n_residues.
+        """Equation 2
+
+        Compute the minimum perimeter for a compact shape with n_residues.
         
         The minimum perimeter is calculated based on the optimal rectangular
         or near-rectangular arrangement of residues. This is used to determine
