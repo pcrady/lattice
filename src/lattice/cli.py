@@ -18,14 +18,15 @@ def main():
         description="Calculate degeneracies, partition function, and average compactness for protein sequences"
     )
     parser.add_argument(
-        "sequences",
+        "--proteins", "-p",
         nargs="+",
+        required=True,
         help="One or more protein sequences (e.g., HHHPPHP)",
     )
     
     args = parser.parse_args()
     
-    for sequence in args.sequences:
+    for sequence in args.proteins:
         print(f"\n{'='*60}")
         print(f"Sequence: {sequence}")
         print(f"{'='*60}")
