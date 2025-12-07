@@ -304,7 +304,8 @@ class Ensemble:
     def p_maximum_term(
         self,
         epsilon: float = EPSILON_ENERGY,
-    ) -> float:
+        return_dict: bool = False,
+    ) -> float | defaultdict:
         """Equation not labeled
         Compute p*: the compactness whose contribution to Z is maximal.
 
@@ -337,7 +338,10 @@ class Ensemble:
             raise ValueError("No states found when computing p_maximum_term")
 
         p_star, _ = max(density_weights.items(), key=lambda kv: kv[1])
-        return p_star
+        if not return_dict:
+            return p_star
+        else:
+            return density_weights
 
     @property
     def p_average_compactness_native_state(
