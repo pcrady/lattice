@@ -412,7 +412,9 @@ class Ensemble:
         self,
         epsilon: float = EPSILON_ENERGY,
     ) -> float:
-        """Compute the average degree to which H residues are partitioned into a core.
+        """Equation 11
+
+        Compute the average degree to which H residues are partitioned into a core.
 
         The average interior H fraction avg(x) measures the ensemble-averaged degree
         to which hydrophobic residues are buried in the interior (solvophobic core)
@@ -458,7 +460,9 @@ class Ensemble:
     def x_average_core_distribution_native_state(
         self,
     ) -> float:
-        """Compute the average interior H fraction for the native state (global minimum).
+        """Equation 12
+
+        Compute the average interior H fraction for the native state (global minimum).
 
         The native state consists of all configurations with the maximum number of
         HH contacts (s_max_HH), which represent the lowest energy (most favorable)
