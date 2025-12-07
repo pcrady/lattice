@@ -37,10 +37,12 @@ class Ensemble:
         self.protein_string: str = protein_string
         valid_chars = set("HP")
         assert set(self.protein_string) <= valid_chars
-
+ 
         self.n_residues: int = len(protein_string)
         assert self.n_residues >= 2
 
+        self.phi: float = self.protein_string.count('H') / self.n_residues
+ 
         self.t_max_topological_neighbors: int = (
             ProteinConfig.compute_t_max_topological_neighbors(self.n_residues)
         )
