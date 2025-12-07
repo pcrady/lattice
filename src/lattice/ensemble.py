@@ -3,6 +3,7 @@ import math
 import numpy as np
 from .protein_config import ProteinConfig
 import pandas as pd
+from collections import defaultdict
 
 
 # Default energy parameter for partition function calculations
@@ -298,6 +299,45 @@ class Ensemble:
 
                 value += compactness * g * exponential
         return value * (1 / self.z_partition_function(epsilon=epsilon))
+
+
+    def p_maximum_term(
+        self,
+        epsilon: float = EPSILON_ENERGY,
+    ) -> float:
+        """Equation not labeled
+        Compute p*: the compactness whose contribution to Z is maximal.
+
+        for a given energy you loop over every configuration in the ensemble,
+        compute its compactness and then add the correstponding boltzman weight
+        to the total for that compactness. Then after you've enumerated
+        everything you pick the one with the largest weight sum.
+
+        This corresponds to the 'maximum term' in the sum over densities:
+            Z = sum_rho P_rho
+        where P_rho is the total Boltzmann weight of all configurations
+        having that compactness (density) rho.
+        """
+
+        density_weights = defaultdict(float)
+
+        for m in range(self.s_max_HH + 1):
+            for u in range(self.t_max_topological_neighbors - m + 1):
+                compactness = (m + u) / self.t_max_topological_neighbors
+                assert 0.0 <= compactness <= 1.0
+
+                g = self.G_contact_degeneracy(m, u)
+                assert g >= 0
+
+                weight = g * math.exp((self.s_max_HH - m) * epsilon)
+
+                density_weights[compactness] += weight
+
+        if not density_weights:
+            raise ValueError("No states found when computing p_maximum_term")
+
+        p_star, _ = max(density_weights.items(), key=lambda kv: kv[1])
+        return p_star
 
     @property
     def p_average_compactness_native_state(
