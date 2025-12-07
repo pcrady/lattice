@@ -410,7 +410,7 @@ class Ensemble:
             value += m * g * exponential
         return value * (1 / self.z_partition_function(epsilon=epsilon))
 
-    def avg_x(
+    def x_average_core_distribution(
         self,
         epsilon: float = EPSILON_ENERGY,
     ) -> float:
