@@ -265,6 +265,47 @@ class ProteinConfig:
             + self.contacts.pp_contacts
         ) / self.t_max_topological_neighbors
 
+    def interior_h_fraction(self) -> float:
+        """Compute the fraction of interior residues that are hydrophobic (H).
+
+        A residue is considered interior if all 4 neighbors (up, down, left, right)
+        are occupied by other residues. This measures the degree to which H residues
+        are partitioned into a solvophobic core.
+
+        The fraction x is defined as:
+        x = n_hi / n_i
+
+        where:
+        - n_hi is the number of hydrophobic (H) residues in the interior
+        - n_i is the total number of interior residues
+
+        Returns:
+            The fraction x, a value between 0 and 1. Returns 0.0 if there are
+            no interior residues (n_i = 0).
+        """
+        occupied_coords = set((x, y) for x, y, _ in self.shifted_config)
+
+        n_hi = 0
+        n_i = 0
+
+        for x, y, value in self.shifted_config:
+            neighbors = [
+                (x + 1, y),
+                (x - 1, y),
+                (x, y + 1),
+                (x, y - 1),
+            ]
+
+            if all(neighbor in occupied_coords for neighbor in neighbors):
+                n_i += 1
+                if value == 2:
+                    n_hi += 1
+
+        if n_i == 0:
+            return 0.0
+
+        return n_hi / n_i
+
     def _label(self, value: int) -> str:
         """Convert a numerical residue value to its character label.
 

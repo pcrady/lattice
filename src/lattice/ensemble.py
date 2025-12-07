@@ -410,6 +410,52 @@ class Ensemble:
             value += m * g * exponential
         return value * (1 / self.z_partition_function(epsilon=epsilon))
 
+    def avg_x(
+        self,
+        epsilon: float = EPSILON_ENERGY,
+    ) -> float:
+        """Compute the average degree to which H residues are partitioned into a core.
+
+        The average interior H fraction avg(x) measures the ensemble-averaged degree
+        to which hydrophobic residues are buried in the interior (solvophobic core)
+        of compact chain molecules.
+
+        For each configuration i:
+        - x_i = n_hi / n_i, where n_hi is the number of H residues in the interior
+          and n_i is the total number of interior residues
+        - A residue is interior if all 4 neighbors (up, down, left, right) are
+          occupied by other residues
+
+        The ensemble average is:
+        avg(x) = Z^-1 * Σ_i x_i * exp((s_max - m_i) * ε)
+
+        where:
+        - x_i is the interior H fraction for configuration i
+        - m_i is the number of HH contacts in configuration i
+        - s_max is the maximum number of HH contacts (s_max_HH)
+        - ε is the energy parameter
+        - Z is the partition function
+        - The sum is over all N configurations in the ensemble
+
+        Args:
+            epsilon: Energy parameter ε. Defaults to EPSILON_ENERGY (0.0).
+                Positive values favor configurations with more HH contacts.
+
+        Returns:
+            The average interior H fraction avg(x), a value between 0 and 1,
+            representing the ensemble-averaged degree of H residue partitioning
+            into a solvophobic core.
+        """
+        value = 0.0
+        for config in self.ensemble:
+            x_i = config.interior_h_fraction()
+            m_i = config.contacts.hh_contacts
+            exponential = math.exp((self.s_max_HH - m_i) * epsilon)
+            value += x_i * exponential
+
+        z = self.z_partition_function(epsilon=epsilon)
+        return value / z
+
     def __str__(self) -> str:
         """Generate a string representation of the ensemble.
 
