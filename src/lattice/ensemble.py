@@ -372,6 +372,44 @@ class Ensemble:
             value += compactness * g
         return value * (1 / self.z_partition_function(epsilon=-999999999999))
 
+
+    def m_average_molecule_energy(
+        self,
+        epsilon: float = EPSILON_ENERGY,
+    ) -> float:
+        """Equation 9
+
+        Compute the average molecule energy (average number of HH contacts) of the ensemble.
+
+        The average molecule energy is the ensemble average of the number of HH contacts m,
+        weighted by Boltzmann factors. This represents the expected number of hydrophobic-
+        hydrophobic contacts at thermal equilibrium.
+
+        The calculation is:
+        <m> = (1/Z) * Σ_m m * g(m) * exp((s_max - m) * ε)
+
+        where:
+        - m is the number of HH contacts
+        - g(m) is the degeneracy for m HH contacts
+        - s_max is the maximum number of HH contacts
+        - ε is the energy parameter
+        - Z is the partition function
+
+        Args:
+            epsilon: Energy parameter ε. Defaults to EPSILON_ENERGY (0.0).
+                Positive values favor configurations with more HH contacts.
+
+        Returns:
+            The average number of HH contacts <m>, representing the ensemble-averaged
+            molecule energy. This value ranges from 0 to s_max_HH.
+        """
+        value = 0
+        for m in range(self.s_max_HH, +1):
+            g = self.g_degeneracy(m)
+            exponential = math.exp((self.s_max_HH - m) * epsilon)
+            value += m * g * exponential
+        return value * (1 / self.z_partition_function(epsilon=epsilon))
+
     def __str__(self) -> str:
         """Generate a string representation of the ensemble.
 
