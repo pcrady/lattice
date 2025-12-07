@@ -300,7 +300,6 @@ class Ensemble:
                 value += compactness * g * exponential
         return value * (1 / self.z_partition_function(epsilon=epsilon))
 
-
     def p_maximum_term(
         self,
         epsilon: float = EPSILON_ENERGY,
@@ -371,7 +370,6 @@ class Ensemble:
 
             value += compactness * g
         return value * (1 / self.z_partition_function(epsilon=-999999999999))
-
 
     def m_average_molecule_energy(
         self,
@@ -455,6 +453,43 @@ class Ensemble:
 
         z = self.z_partition_function(epsilon=epsilon)
         return value / z
+
+    @property
+    def x_average_core_distribution_native_state(
+        self,
+    ) -> float:
+        """Compute the average interior H fraction for the native state (global minimum).
+
+        The native state consists of all configurations with the maximum number of
+        HH contacts (s_max_HH), which represent the lowest energy (most favorable)
+        configurations in the ensemble.
+
+        This property computes the average degree to which H residues are partitioned
+        into a solvophobic core, specifically over the native state configurations:
+
+        <x>_native = (1/g(s_max)) * Σ_j x_j
+
+        where:
+        - The sum is over all native state configurations j (with m_j = s_max_HH)
+        - x_j is the interior H fraction for configuration j (x_j = n_hi / n_i)
+        - g(s_max) is the degeneracy of the native state (number of configurations
+          with maximum HH contacts)
+
+        A residue is considered interior if all 4 neighbors (up, down, left, right)
+        are occupied by other residues.
+
+        Returns:
+            The average interior H fraction for the native state, a value between
+            0 and 1, representing the average degree of H residue partitioning
+            into a solvophobic core in the lowest energy configurations.
+        """
+        value = 0
+        for config in self.ensemble:
+            if config.contacts.hh_contacts == self.s_max_HH:
+                x_j = config.interior_h_fraction()
+                value += x_j
+
+        return (1 / self.g_degeneracy(self.s_max_HH)) * value
 
     def __str__(self) -> str:
         """Generate a string representation of the ensemble.
