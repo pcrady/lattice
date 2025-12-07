@@ -404,7 +404,7 @@ class Ensemble:
             molecule energy. This value ranges from 0 to s_max_HH.
         """
         value = 0
-        for m in range(self.s_max_HH, +1):
+        for m in range(self.s_max_HH + 1):
             g = self.g_degeneracy(m)
             exponential = math.exp((self.s_max_HH - m) * epsilon)
             value += m * g * exponential
