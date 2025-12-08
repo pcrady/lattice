@@ -125,6 +125,8 @@ class ProteinConfig:
         x_coords = x_coords - x_min
         y_coords = y_coords - y_min
 
+        # Recalculate shifted_config from config (don't modify in place)
+        self.shifted_config = self.config.copy()
         self.shifted_config[:, 0] -= x_min
         self.shifted_config[:, 1] -= y_min
 
@@ -605,23 +607,33 @@ class ProteinConfig:
         for (x1, y1, _), (x2, y2, _) in zip(
             self.shifted_config, self.shifted_config[1:]
         ):
+            # Check if residues are adjacent (Manhattan distance = 1)
             if abs(x1 - x2) + abs(y1 - y2) != 1:
                 continue
 
+            # Convert to lattice row/column coordinates (y-axis inverted for display)
             r1 = height - 1 - y1
             c1 = x1
             r2 = height - 1 - y2
             c2 = x2
 
+            # Ensure coordinates are within lattice bounds
+            if not (0 <= r1 < height and 0 <= c1 < width and 
+                    0 <= r2 < height and 0 <= c2 < width):
+                continue
+
+            # Calculate bond position in output grid (between two residues)
             ar1, ac1 = 2 * r1, 2 * c1
             ar2, ac2 = 2 * r2, 2 * c2
             cr = (ar1 + ar2) // 2
             cc = (ac1 + ac2) // 2
 
-            if x1 != x2:
-                grid[cr][cc] = "-"
-            else:
-                grid[cr][cc] = "|"
+            # Ensure bond coordinates are within output grid bounds
+            if 0 <= cr < out_h and 0 <= cc < out_w:
+                if x1 != x2:
+                    grid[cr][cc] = "-"
+                else:
+                    grid[cr][cc] = "|"
 
         return "\n".join(" ".join(row) for row in grid)
 
