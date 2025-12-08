@@ -497,6 +497,53 @@ class Ensemble:
 
         return (1 / self.g_degeneracy(self.s_max_HH)) * value
 
+    @property
+    def d_average_distance_native_states(
+        self,
+    ) -> float:
+        """Equation 15
+
+        Compute the average pairwise distance between native states.
+
+        Native states are conformations with the maximum number of HH contacts (s_max_HH).
+        This property computes the average distance between all pairs of native states:
+
+        <d>_native = (2/(g(s)(g(s)-1))) * Σ_i Σ_j>i d(v_i, v_j)
+
+        where:
+        - The sum is over all pairs of native state configurations (i, j) with i < j
+        - d(v_i, v_j) is the distance between conformations i and j (computed using turn vectors)
+        - g(s_max) is the degeneracy of the native state (number of configurations
+          with maximum HH contacts)
+
+        Returns:
+            The average pairwise distance between native states. Returns 0.0 if there
+            are fewer than 2 native states (no pairs to compare).
+        """
+        g = self.g_degeneracy(self.s_max_HH)
+        
+        # Handle edge case: need at least 2 native states to compute pairwise distances
+        if g < 2:
+            return 0.0
+        
+        # Filter native states (configurations with maximum HH contacts)
+        native_states = [
+            config for config in self.ensemble 
+            if config.contacts.hh_contacts == self.s_max_HH
+        ]
+        
+        # Compute sum of all pairwise distances
+        total_distance = 0
+        for i in range(len(native_states)):
+            for j in range(i + 1, len(native_states)):
+                total_distance += native_states[i].distance(native_states[j])
+        
+        # Multiply by 2/(g(s)(g(s)-1)) to get average
+        return (2.0 / (g * (g - 1))) * total_distance
+
+
+
+
     def __str__(self) -> str:
         """Generate a string representation of the ensemble.
 
@@ -513,3 +560,5 @@ class Ensemble:
             return_string = return_string + "\n"
             return_string = return_string + "---------------------------\n"
         return return_string
+
+    
