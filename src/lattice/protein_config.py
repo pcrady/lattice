@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import random
 from scipy.sparse import coo_matrix
 from collections import OrderedDict
 
@@ -100,6 +101,7 @@ class ProteinConfig:
             self.t_max_topological_neighbors = t_max_topological_neighbors
 
         self.contacts: Contacts = Contacts()
+        self._initialized_for_folding: bool = False  # Track if initialized for folding
         self._compute_contacts()
 
     def generate_lattice(self) -> np.ndarray:
@@ -202,6 +204,45 @@ class ProteinConfig:
             return 1
         else:
             raise Exception("Error invalid character in protein_string")
+
+    @staticmethod
+    def from_string(protein_string: str) -> "ProteinConfig":
+        """Generate a protein configuration along the x-axis from a string.
+
+        Creates a ProteinConfig initialized along the x-axis starting at (0,0).
+        The protein is laid out as: (0,0), (1,0), (2,0), ..., (n-1, 0).
+
+        Args:
+            protein_string: A string of 'H' (hydrophobic) and 'P' (polar) residues.
+                Must contain only 'H' and 'P' characters and have at least 2 residues.
+
+        Returns:
+            A ProteinConfig instance with the protein initialized along the x-axis.
+
+        Raises:
+            ValueError: If protein_string is empty, has fewer than 2 residues,
+                or contains invalid characters.
+        """
+        if not protein_string:
+            raise ValueError("Protein string cannot be empty")
+        
+        if len(protein_string) < 2:
+            raise ValueError("Protein string must have at least 2 residues")
+        
+        valid_chars = set("HP")
+        if not set(protein_string) <= valid_chars:
+            raise ValueError(f"Protein string can only contain 'H' and 'P' characters")
+        
+        # Create configuration array along x-axis
+        n_residues = len(protein_string)
+        config = np.zeros((n_residues, 3), dtype=int)
+        
+        for i, char in enumerate(protein_string):
+            config[i] = [i, 0, ProteinConfig.get_residue_value(char)]
+        
+        protein = ProteinConfig(config)
+        protein._initialized_for_folding = True  # Mark as initialized for folding
+        return protein
 
     def _compute_contacts(self) -> None:
         """Compute all contacts between non-adjacent residues.
@@ -388,6 +429,132 @@ class ProteinConfig:
         sum_abs = np.abs(v1 + v2).sum()
 
         return int(min(diff, sum_abs))
+
+    def _is_initialized_along_x_axis(self) -> bool:
+        """Check if the protein is initialized along the x-axis starting at (0,0).
+        
+        Returns:
+            True if all residues have y=0 and x coordinates increase from 0.
+        """
+        if len(self.config) == 0:
+            return False
+        
+        # Check if all y coordinates are 0
+        if not np.all(self.config[:, 1] == 0):
+            return False
+        
+        # Check if x coordinates are 0, 1, 2, 3, ...
+        x_coords = self.config[:, 0]
+        expected_x = np.arange(len(self.config))
+        return np.array_equal(x_coords, expected_x)
+
+    def _has_self_intersection(self, config: np.ndarray) -> bool:
+        """Check if a configuration has self-intersection (overlapping coordinates).
+        
+        Args:
+            config: A numpy array of shape (n_residues, 3) with [x, y, value] rows.
+            
+        Returns:
+            True if any coordinate appears more than once (self-intersection).
+        """
+        coords = [(row[0], row[1]) for row in config]
+        return len(coords) != len(set(coords))
+
+    def fold(self, max_attempts: int = 100) -> bool:
+        """Fold the protein by bending at a random location.
+        
+        If the protein has not been initialized for folding, initializes it along
+        the x-axis first. Then randomly picks a location along the protein and bends
+        it at a right angle in a random direction. Retries if the bend causes
+        self-intersection.
+        
+        The bend is performed by rotating the chain segment after the chosen location
+        by 90 degrees in a random direction (clockwise or counterclockwise).
+        Subsequent calls to fold() will continue folding from the current state.
+        
+        Args:
+            max_attempts: Maximum number of attempts to find a valid fold that doesn't
+                cause self-intersection. Defaults to 100.
+                
+        Returns:
+            True if a valid fold was successfully applied, False if no valid fold
+            could be found after max_attempts attempts.
+        """
+        # Initialize along x-axis only once (first time fold is called)
+        if not self._initialized_for_folding:
+            # Initialize: (0,0), (1,0), (2,0), ..., (n-1, 0)
+            new_config = np.zeros((self.n_residues, 3), dtype=int)
+            for i in range(self.n_residues):
+                new_config[i] = [i, 0, self.config[i, 2]]  # Preserve residue values
+            self.config = new_config
+            self.shifted_config = self.config.copy()
+            self._initialized_for_folding = True
+            self._compute_contacts()
+        
+        # Need at least 3 residues to fold (need a segment to rotate)
+        if self.n_residues < 3:
+            return False
+        
+        # Pick a random location to bend (not at the ends)
+        # We'll bend after position bend_index, so bend_index can be 0 to n-2
+        bend_index = random.randint(0, self.n_residues - 2)
+        
+        for attempt in range(max_attempts):
+            # Create a copy to test the fold
+            test_config = self.config.copy()
+            
+            # Determine the current direction from bend_index to bend_index+1
+            dx = test_config[bend_index + 1, 0] - test_config[bend_index, 0]
+            dy = test_config[bend_index + 1, 1] - test_config[bend_index, 1]
+            
+            # Choose rotation direction (clockwise or counterclockwise)
+            clockwise = random.random() < 0.5
+            
+            # Apply the bend: rotate the segment starting at bend_index+1
+            # The pivot point is at bend_index
+            pivot_x = test_config[bend_index, 0]
+            pivot_y = test_config[bend_index, 1]
+            
+            # Update all positions after the bend_index
+            for i in range(bend_index + 1, self.n_residues):
+                # Calculate relative position from the pivot
+                rel_x = test_config[i, 0] - pivot_x
+                rel_y = test_config[i, 1] - pivot_y
+                
+                # Rotate the relative position by 90 degrees
+                if clockwise:
+                    # Clockwise: (x, y) -> (y, -x)
+                    new_rel_x = rel_y
+                    new_rel_y = -rel_x
+                else:
+                    # Counterclockwise: (x, y) -> (-y, x)
+                    new_rel_x = -rel_y
+                    new_rel_y = rel_x
+                
+                # Update the position
+                test_config[i, 0] = pivot_x + new_rel_x
+                test_config[i, 1] = pivot_y + new_rel_y
+            
+            # Check if this causes self-intersection
+            if not self._has_self_intersection(test_config):
+                # Also check that consecutive residues are still neighbors
+                valid = True
+                for i in range(self.n_residues - 1):
+                    dx_check = abs(test_config[i + 1, 0] - test_config[i, 0])
+                    dy_check = abs(test_config[i + 1, 1] - test_config[i, 1])
+                    if dx_check + dy_check != 1:  # Not adjacent
+                        valid = False
+                        break
+                
+                if valid:
+                    # Valid fold! Update the configuration
+                    self.config = test_config
+                    self.shifted_config = self.config.copy()
+                    self._compute_contacts()
+                    return True
+        
+        # Could not find a valid fold after max_attempts
+        return False
 
     def _label(self, value: int) -> str:
         """Convert a numerical residue value to its character label.
