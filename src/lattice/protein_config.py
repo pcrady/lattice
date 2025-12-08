@@ -306,6 +306,89 @@ class ProteinConfig:
 
         return n_hi / n_i
 
+    @property
+    def turn_vector(self) -> np.ndarray:
+        """Compute the turn vector representation of the chain conformation.
+
+        Each bond pair (three consecutive residues) is represented by:
+        - 0: collinear (straight)
+        - +1: right turn (clockwise)
+        - -1: left turn (counterclockwise)
+
+        The conformation is represented by the vector:
+        v = [b1, b2, ..., b_{n-2}]
+
+        where n is the number of residues. This has the useful feature that
+        the mirror image conformation is represented simply by -v.
+
+        Returns:
+            A numpy array of shape (n_residues - 2,) containing the turn
+            values for each bond pair. Each value is -1, 0, or +1.
+        """
+        if self.n_residues < 3:
+            return np.array([], dtype=int)
+
+        turn_values = []
+        for i in range(self.n_residues - 2):
+            p1 = self.shifted_config[i]
+            p2 = self.shifted_config[i + 1]
+            p3 = self.shifted_config[i + 2]
+
+            x1, y1 = p1[0], p1[1]
+            x2, y2 = p2[0], p2[1]
+            x3, y3 = p3[0], p3[1]
+
+            dx1 = x2 - x1
+            dy1 = y2 - y1
+            dx2 = x3 - x2
+            dy2 = y3 - y2
+
+            cross = dx1 * dy2 - dy1 * dx2
+
+            if cross == 0:
+                turn_values.append(0)
+            elif cross > 0:
+                turn_values.append(-1)
+            else:
+                turn_values.append(1)
+
+        return np.array(turn_values, dtype=int)
+
+    def distance(self, other: "ProteinConfig") -> int:
+        """Equation 13
+
+        Compute the distance between two conformations using their turn vectors.
+
+        The distance measure d(v1, v2) between two conformations is:
+        d(v1, v2) = min[c(v1 - v2), c(v1 + v2)]
+
+        where c represents the operation of summing the absolute values of
+        the elements. The minimum accounts for the fact that the mirror image
+        of a conformation is represented by -v, so we consider both the
+        difference and the sum (which corresponds to comparing with the
+        mirror image).
+
+        Args:
+            other: Another ProteinConfig to compute the distance to.
+
+        Returns:
+            The distance between the two conformations, a non-negative integer.
+            Returns 0 if the conformations are identical or mirror images.
+        """
+        v1 = self.turn_vector
+        v2 = other.turn_vector
+
+        if len(v1) != len(v2):
+            raise ValueError(
+                f"Cannot compute distance: conformations have different lengths "
+                f"({len(v1)} vs {len(v2)} turn values)"
+            )
+
+        diff = np.abs(v1 - v2).sum()
+        sum_abs = np.abs(v1 + v2).sum()
+
+        return int(min(diff, sum_abs))
+
     def _label(self, value: int) -> str:
         """Convert a numerical residue value to its character label.
 

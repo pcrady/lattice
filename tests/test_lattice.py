@@ -142,7 +142,6 @@ class TestProteinConfig(unittest.TestCase):
         print(f"Prot1 - compactness: {prot1.compactness}")
         self.assertEqual(prot1.compactness, 0)
 
-
         print("")
         prot2 = ProteinConfig(TestProteinConfig.config2)
         print(prot2)
@@ -175,7 +174,14 @@ class TestProteinConfig(unittest.TestCase):
     def test_degeneracies(self):
         print("")
         print("-------------------------------------------------")
-        proteins = ['HHHHHHHHHH', 'HPHPPHPPHH', 'HPPHPPHPHH', 'PPPPPPHPPH', 'PPPPPHHHHH', 'PPPPPPPPPP']
+        proteins = [
+            "HHHHHHHHHH",
+            "HPHPPHPPHH",
+            "HPPHPPHPHH",
+            "PPPPPPHPPH",
+            "PPPPPHHHHH",
+            "PPPPPPPPPP",
+        ]
         zeros = []
         expected_zeros = [666, 1435, 1164, 1688, 1461, 2034]
         for protein in proteins:
@@ -185,6 +191,44 @@ class TestProteinConfig(unittest.TestCase):
         for i in range(len(zeros)):
             self.assertEqual(zeros[i], expected_zeros[i])
 
+    def test_distances(self):
+        print("")
+        print("-------------------------------------------------")
+        config1 = np.array(
+            [
+                [0, 0, 1],
+                [1, 0, 1],
+                [2, 0, 1],
+                [2, -1, 1],
+                [1, -1, 1],
+                [1, -2, 1],
+                [0, -2, 1],
+                [-1, -2, 1],
+                [-1, -1, 1],
+                [0, -1, 1],
+            ]
+        )
+
+        config2 = np.array(
+            [
+                [0, 0, 1],
+                [1, 0, 1],
+                [2, 0, 1],
+                [2, -1, 1],
+                [1, -1, 1],
+                [1, -2, 1],
+                [1, -3, 1],
+                [0, -3, 1],
+                [0, -2, 1],
+                [0, -1, 1],
+            ]
+        )
+
+        prot1 = ProteinConfig(config1)
+        prot2 = ProteinConfig(config2)
+        print(prot1)
+        print(prot2)
+        self.assertEqual(prot1.distance(prot2), 3)
 
 
 if __name__ == "__main__":
