@@ -260,6 +260,7 @@ class ProteinConfig:
         - 2 = H*P or P*H (hydrophobic-polar)
         - 1 = P*P (polar-polar)
         """
+        self.contacts = Contacts()
         coords = OrderedDict(((x, y), v) for x, y, v in self.shifted_config)
         coord_index: dict[tuple[int, int], int] = {
             (x, y): i for i, (x, y, _) in enumerate(self.shifted_config)
