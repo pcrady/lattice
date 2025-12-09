@@ -101,7 +101,7 @@ class ProteinConfig:
             self.t_max_topological_neighbors = t_max_topological_neighbors
 
         self.contacts: Contacts = Contacts()
-        self._initialized_for_folding: bool = False  # Track if initialized for folding
+        self._initialized_for_folding: bool = False
         self._compute_contacts()
 
     def generate_lattice(self) -> np.ndarray:
@@ -125,7 +125,6 @@ class ProteinConfig:
         x_coords = x_coords - x_min
         y_coords = y_coords - y_min
 
-        # Recalculate shifted_config from config (don't modify in place)
         self.shifted_config = self.config.copy()
         self.shifted_config[:, 0] -= x_min
         self.shifted_config[:, 1] -= y_min
@@ -483,9 +482,7 @@ class ProteinConfig:
             True if a valid fold was successfully applied, False if no valid fold
             could be found after max_attempts attempts.
         """
-        # Initialize along x-axis only once (first time fold is called)
         if not self._initialized_for_folding:
-            # Initialize: (0,0), (1,0), (2,0), ..., (n-1, 0)
             new_config = np.zeros((self.n_residues, 3), dtype=int)
             for i in range(self.n_residues):
                 new_config[i] = [i, 0, self.config[i, 2]]  # Preserve residue values
@@ -494,53 +491,33 @@ class ProteinConfig:
             self._initialized_for_folding = True
             self._compute_contacts()
         
-        # Need at least 3 residues to fold (need a segment to rotate)
         if self.n_residues < 3:
             return False
         
-        # Pick a random location to bend (not at the ends)
-        # We'll bend after position bend_index, so bend_index can be 0 to n-2
         bend_index = random.randint(0, self.n_residues - 2)
         
-        for attempt in range(max_attempts):
-            # Create a copy to test the fold
+        for _ in range(max_attempts):
             test_config = self.config.copy()
-            
-            # Determine the current direction from bend_index to bend_index+1
-            dx = test_config[bend_index + 1, 0] - test_config[bend_index, 0]
-            dy = test_config[bend_index + 1, 1] - test_config[bend_index, 1]
-            
-            # Choose rotation direction (clockwise or counterclockwise)
             clockwise = random.random() < 0.5
-            
-            # Apply the bend: rotate the segment starting at bend_index+1
-            # The pivot point is at bend_index
+
             pivot_x = test_config[bend_index, 0]
             pivot_y = test_config[bend_index, 1]
             
-            # Update all positions after the bend_index
             for i in range(bend_index + 1, self.n_residues):
-                # Calculate relative position from the pivot
                 rel_x = test_config[i, 0] - pivot_x
                 rel_y = test_config[i, 1] - pivot_y
                 
-                # Rotate the relative position by 90 degrees
                 if clockwise:
-                    # Clockwise: (x, y) -> (y, -x)
                     new_rel_x = rel_y
                     new_rel_y = -rel_x
                 else:
-                    # Counterclockwise: (x, y) -> (-y, x)
                     new_rel_x = -rel_y
                     new_rel_y = rel_x
                 
-                # Update the position
                 test_config[i, 0] = pivot_x + new_rel_x
                 test_config[i, 1] = pivot_y + new_rel_y
             
-            # Check if this causes self-intersection
             if not self._has_self_intersection(test_config):
-                # Also check that consecutive residues are still neighbors
                 valid = True
                 for i in range(self.n_residues - 1):
                     dx_check = abs(test_config[i + 1, 0] - test_config[i, 0])
@@ -550,7 +527,6 @@ class ProteinConfig:
                         break
                 
                 if valid:
-                    # Valid fold! Update the configuration
                     self.config = test_config
                     self.shifted_config = self.config.copy()
                     self._compute_contacts()
