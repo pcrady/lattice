@@ -1,0 +1,17 @@
+name: lattice
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.10
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  - jupyter
+  - ipython
+  - pip
+  - pip:
+    - -e .
+
