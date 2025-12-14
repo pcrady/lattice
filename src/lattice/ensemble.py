@@ -4,6 +4,9 @@ import numpy as np
 from .protein_config import ProteinConfig
 import pandas as pd
 from collections import defaultdict
+import os
+from concurrent.futures import ProcessPoolExecutor
+from itertools import repeat
 
 
 # Default energy parameter for partition function calculations
@@ -23,6 +26,9 @@ class Ensemble:
     def __init__(
         self,
         protein_string: str,
+        particle_number: int | None = None,
+        iterations: int = 1000,
+        energy_bias: float = 1.0,
     ):
         """Initialize an Ensemble for a given protein sequence.
 
@@ -50,7 +56,26 @@ class Ensemble:
             self.n_residues
         )
 
-        self.ensemble: list[ProteinConfig] = self._generate_ensemble()
+        if particle_number is not None:
+            self.ensemble: list[ProteinConfig] = [ProteinConfig.from_string(self.protein_string) for _ in range(particle_number)]
+            self._parallel_mc_compute(iterations, energy_bias)
+
+            self.ensemble = sorted(self.ensemble, key=lambda config: config.contacts.hh_contacts)
+            self.monte_carlo = True
+        else:
+            self.ensemble: list[ProteinConfig] = self._generate_ensemble()
+            self.monte_carlo = False
+
+    @staticmethod
+    def _run_metropolis(obj, iterations: int, energy_bias: float):
+        obj.metropolis(iterations=iterations, energy_bias=energy_bias)
+        return obj
+
+    def _parallel_mc_compute(self, iterations: int, energy_bias: float):
+        max_workers = os.cpu_count() or 1
+        with ProcessPoolExecutor(max_workers=max_workers) as ex:
+            updated = list(ex.map(Ensemble._run_metropolis, self.ensemble, repeat(iterations), repeat(energy_bias)))
+        self.ensemble = updated
 
     def _generate_paths(self) -> list[list[tuple[int, int]]]:
         """Generate all valid self-avoiding walk paths on a 2D lattice.
@@ -140,6 +165,9 @@ class Ensemble:
     def degeneracies(self) -> dict[int, int]:
         """Compute the degeneracy for each possible number of HH contacts.
 
+        IMPORTANT: If you specified the particle number then it will simply 
+        assess each config in the ensemble.
+
         The degeneracy g(m) represents the number of configurations with
         exactly m hydrophobic-hydrophobic contacts, summed over all possible
         non-HH contact counts.
@@ -149,6 +177,16 @@ class Ensemble:
             Keys range from 0 to s_max_HH.
         """
         degens = {}
+
+        if self.monte_carlo:
+            for config in self.ensemble:
+                energy = config.contacts.hh_contacts
+                if energy in degens.keys():
+                    degens[energy] += 1
+                else:
+                    degens[energy] = 1
+            return degens
+
         for m in range(self.s_max_HH + 1):
             degens[m] = self.g_degeneracy(m)
         return degens
@@ -172,8 +210,8 @@ class Ensemble:
 
         df: pd.DataFrame = pd.DataFrame(
             {
-                "count": count,
                 "energy": energy,
+                "count": count,
             }
         )
 
