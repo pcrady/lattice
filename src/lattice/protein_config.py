@@ -227,21 +227,21 @@ class ProteinConfig:
         """
         if not protein_string:
             raise ValueError("Protein string cannot be empty")
-        
+
         if len(protein_string) < 2:
             raise ValueError("Protein string must have at least 2 residues")
-        
+
         valid_chars = set("HP")
         if not set(protein_string) <= valid_chars:
             raise ValueError(f"Protein string can only contain 'H' and 'P' characters")
-        
+
         # Create configuration array along x-axis
         n_residues = len(protein_string)
         config = np.zeros((n_residues, 3), dtype=int)
-        
+
         for i, char in enumerate(protein_string):
             config[i] = [i, 0, ProteinConfig.get_residue_value(char)]
-        
+
         protein = ProteinConfig(config)
         protein._initialized_for_folding = True  # Mark as initialized for folding
         return protein
@@ -435,17 +435,17 @@ class ProteinConfig:
 
     def _is_initialized_along_x_axis(self) -> bool:
         """Check if the protein is initialized along the x-axis starting at (0,0).
-        
+
         Returns:
             True if all residues have y=0 and x coordinates increase from 0.
         """
         if len(self.config) == 0:
             return False
-        
+
         # Check if all y coordinates are 0
         if not np.all(self.config[:, 1] == 0):
             return False
-        
+
         # Check if x coordinates are 0, 1, 2, 3, ...
         x_coords = self.config[:, 0]
         expected_x = np.arange(len(self.config))
@@ -453,28 +453,35 @@ class ProteinConfig:
 
     def _has_self_intersection(self, config: np.ndarray) -> bool:
         """Check if a configuration has self-intersection (overlapping coordinates).
-        
+
         Args:
             config: A numpy array of shape (n_residues, 3) with [x, y, value] rows.
-            
+
         Returns:
             True if any coordinate appears more than once (self-intersection).
         """
         coords = [(row[0], row[1]) for row in config]
         return len(coords) != len(set(coords))
 
-    def metropolis(self, iterations: int = 2000) -> None:
+    def metropolis(
+        self,
+        iterations: int = 2000,
+        energy_bias: float = 1.0,
+    ) -> None:
         for _ in range(iterations):
-            self.metropolis_iteration()
+            self.metropolis_iteration(energy_bias=energy_bias)
 
-    def metropolis_iteration(self) -> None:
+    def metropolis_iteration(
+        self,
+        energy_bias: float = 1.0,
+    ) -> None:
         old_config = self.config.copy()
         old_shifted_config = self.shifted_config.copy()
-        old_energy = self.contacts.hh_contacts
+        old_energy = self.contacts.hh_contacts ** energy_bias
 
         self.fold()
 
-        new_energy = self.contacts.hh_contacts
+        new_energy = self.contacts.hh_contacts ** energy_bias
         acceptance_probability = min(1, math.exp(new_energy - old_energy))
 
         if random.random() <= acceptance_probability:
@@ -486,20 +493,20 @@ class ProteinConfig:
 
     def fold(self, max_attempts: int = 100) -> bool:
         """Fold the protein by bending at a random location.
-        
+
         If the protein has not been initialized for folding, initializes it along
         the x-axis first. Then randomly picks a location along the protein and bends
         it at a right angle in a random direction. Retries if the bend causes
         self-intersection.
-        
+
         The bend is performed by rotating the chain segment after the chosen location
         by 90 degrees in a random direction (clockwise or counterclockwise).
         Subsequent calls to fold() will continue folding from the current state.
-        
+
         Args:
             max_attempts: Maximum number of attempts to find a valid fold that doesn't
                 cause self-intersection. Defaults to 100.
-                
+
         Returns:
             True if a valid fold was successfully applied, False if no valid fold
             could be found after max_attempts attempts.
@@ -512,33 +519,33 @@ class ProteinConfig:
             self.shifted_config = self.config.copy()
             self._initialized_for_folding = True
             self._compute_contacts()
-        
+
         if self.n_residues < 3:
             return False
-        
+
         bend_index = random.randint(0, self.n_residues - 2)
-        
+
         for _ in range(max_attempts):
             test_config = self.config.copy()
             clockwise = random.random() < 0.5
 
             pivot_x = test_config[bend_index, 0]
             pivot_y = test_config[bend_index, 1]
-            
+
             for i in range(bend_index + 1, self.n_residues):
                 rel_x = test_config[i, 0] - pivot_x
                 rel_y = test_config[i, 1] - pivot_y
-                
+
                 if clockwise:
                     new_rel_x = rel_y
                     new_rel_y = -rel_x
                 else:
                     new_rel_x = -rel_y
                     new_rel_y = rel_x
-                
+
                 test_config[i, 0] = pivot_x + new_rel_x
                 test_config[i, 1] = pivot_y + new_rel_y
-            
+
             if not self._has_self_intersection(test_config):
                 valid = True
                 for i in range(self.n_residues - 1):
@@ -547,13 +554,13 @@ class ProteinConfig:
                     if dx_check + dy_check != 1:  # Not adjacent
                         valid = False
                         break
-                
+
                 if valid:
                     self.config = test_config
                     self.shifted_config = self.config.copy()
                     self._compute_contacts()
                     return True
-        
+
         # Could not find a valid fold after max_attempts
         return False
 
@@ -616,8 +623,12 @@ class ProteinConfig:
             c2 = x2
 
             # Ensure coordinates are within lattice bounds
-            if not (0 <= r1 < height and 0 <= c1 < width and 
-                    0 <= r2 < height and 0 <= c2 < width):
+            if not (
+                0 <= r1 < height
+                and 0 <= c1 < width
+                and 0 <= r2 < height
+                and 0 <= c2 < width
+            ):
                 continue
 
             # Calculate bond position in output grid (between two residues)
