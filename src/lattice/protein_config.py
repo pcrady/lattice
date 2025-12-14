@@ -3,6 +3,7 @@ import numpy as np
 import random
 from scipy.sparse import coo_matrix
 from collections import OrderedDict
+import random
 
 
 class Contacts:
@@ -461,6 +462,27 @@ class ProteinConfig:
         """
         coords = [(row[0], row[1]) for row in config]
         return len(coords) != len(set(coords))
+
+    def metropolis(self, iterations: int = 2000) -> None:
+        for _ in range(iterations):
+            self.metropolis_iteration()
+
+    def metropolis_iteration(self) -> None:
+        old_config = self.config.copy()
+        old_shifted_config = self.shifted_config.copy()
+        old_energy = self.contacts.hh_contacts
+
+        self.fold()
+
+        new_energy = self.contacts.hh_contacts
+        acceptance_probability = min(1, math.exp(new_energy - old_energy))
+
+        if random.random() <= acceptance_probability:
+            return
+        else:
+            self.config = old_config
+            self.shifted_config = old_shifted_config
+            self._compute_contacts()
 
     def fold(self, max_attempts: int = 100) -> bool:
         """Fold the protein by bending at a random location.
